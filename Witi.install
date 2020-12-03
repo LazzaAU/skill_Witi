@@ -1,0 +1,19 @@
+{
+	"name": "Witi",
+	"speakableName": "Alarm Activation",
+	"version": "0.0.1",
+	"icon": "fab fa-battle-net",
+	"category": "security",
+	"author": "lazzaAU",
+	"maintainers": [],
+	"desc": "Turn on and off witi alarm",
+	"aliceMinVersion": "1.0.0-b3",
+	"pipRequirements": [],
+	"systemRequirements": [],
+	"conditions": {
+		"lang": [
+			"en"
+		],
+		"online": true
+	}
+}
