@@ -8,7 +8,9 @@
 	"maintainers": [],
 	"desc": "Turn on and off witi alarm",
 	"aliceMinVersion": "1.0.0-b3",
-	"pipRequirements": [],
+	"pipRequirements": [
+		"RPi.GPIO"
+	],
 	"systemRequirements": [],
 	"conditions": {
 		"lang": [
