@@ -1,0 +1,68 @@
+{
+	"triggeredMessage": {
+		"defaultValue": "Your Alarm has just been triggered",
+		"dataType": "string",
+		"isSensitive": false,
+		"description": "Choose the message for alarm notification"
+	},
+	"enabledNotification": {
+		"defaultValue": "Alarm has just been turn on. Enjoy your trip",
+		"dataType": "string",
+		"isSensitive": false,
+		"description": "Choose notification for when alarm gets enabled automatically"
+	},
+	"disabledNotification": {
+		"defaultValue": "Alarm has just been turn off. Welcome Home",
+		"dataType": "string",
+		"isSensitive": false,
+		"description": "Choose notification for when alarm gets enabled automatically"
+	},
+	"turnOnAutoArming": {
+		"defaultValue": true,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Turn On automatic armingwhen you leave the network"
+	},
+	"forcePinCode": {
+		"defaultValue": false,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Allows forcing use of pincode to disable"
+	},
+	"pinCode": {
+		"defaultValue": 2020,
+		"dataType": "integer",
+		"isSensitive": true,
+		"description": "Choose a pincode if required"
+	},
+	"activateSoundOnTrigger": {
+		"defaultValue": false,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Allows sound to play on alarm trigger"
+	},
+	"enableMQTTmessages": {
+		"defaultValue": true,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Allows sending of mqtt messages"
+	},
+	"firstStartUp": {
+		"defaultValue": false,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Allows sending of mqtt messages"
+	},
+	"secondsBetweenUpdates": {
+		"defaultValue": 10,
+		"dataType": "integer",
+		"isSensitive": false,
+		"description": "Seconds between auto updating states or sending MQTT messages"
+	},
+	"secondsAfterReturningHome": {
+		"defaultValue": 60,
+		"dataType": "integer",
+		"isSensitive": false,
+		"description": "Seconds to remind user to turn off alarm"
+	}
+}
