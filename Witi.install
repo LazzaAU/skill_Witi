@@ -16,6 +16,9 @@
 		"lang": [
 			"en"
 		],
-		"online": true
+		"online": true,
+		"skill": [
+			"Telegram"
+		]
 	}
 }

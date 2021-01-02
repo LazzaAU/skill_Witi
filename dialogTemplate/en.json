@@ -2,15 +2,118 @@
 	"skill": "Witi",
 	"slotTypes": [
 		{
-			"name": "DummySlot",
+			"name": "WitiState",
 			"matchingStrictness": null,
 			"automaticallyExtensible": false,
 			"useSynonyms": true,
 			"values": [
 				{
-					"value": "foo",
+					"value": "on",
 					"synonyms": [
-						"bar"
+						"activate",
+						"enable"
+					]
+				},
+				{
+					"value": "off",
+					"synonyms": [
+						"deactivate",
+						"disable"
+					]
+				}
+			]
+		},
+		{
+			"name": "ConfigSetting",
+			"matchingStrictness": null,
+			"automaticallyExtensible": false,
+			"useSynonyms": true,
+			"values": [
+				{
+					"value": "auto arming",
+					"synonyms": [
+						"auto alarm",
+						"auto setting"
+					]
+				},
+				{
+					"value": "alarm code",
+					"synonyms": [
+						"pin code"
+					]
+				},
+				{
+					"value": "trigger sound",
+					"synonyms": [
+						"sound notification"
+					]
+				},
+				{
+					"value": "mqtt",
+					"synonyms": [
+						"m q t t",
+						"json",
+						"jason"
+					]
+				}
+			]
+		},
+		{
+			"name": "WitiEngine",
+			"matchingStrictness": null,
+			"automaticallyExtensible": true,
+			"useSynonyms": true,
+			"values": [
+				{
+					"value": "Witi",
+					"synonyms": [
+						"why tie",
+						"witty",
+						"alarm",
+						"security"
+					]
+				}
+			]
+		},
+		{
+			"name": "SwitchingTrigger",
+			"matchingStrictness": null,
+			"automaticallyExtensible": true,
+			"useSynonyms": true,
+			"values": [
+				{
+					"value": "switch",
+					"synonyms": [
+						"turn",
+						"toggle",
+						""
+					]
+				}
+			]
+		},
+		{
+			"name": "WitiNotification",
+			"matchingStrictness": null,
+			"automaticallyExtensible": true,
+			"useSynonyms": true,
+			"values": [
+				{
+					"value": "enabled",
+					"synonyms": [
+						"alarm on"
+					]
+				},
+				{
+					"value": "disabled",
+					"synonyms": [
+						"alarm off"
+					]
+				},
+				{
+					"value": "triggered",
+					"synonyms": [
+						"trigger",
+						"alarm triggered"
 					]
 				}
 			]
@@ -18,17 +121,104 @@
 	],
 	"intents": [
 		{
-			"name": "Dummy",
+			"name": "SwitchWitiState",
 			"enabledByDefault": true,
 			"utterances": [
-				"dummy {foo:=>DummySlotName}",
-				"bar"
+				"turn {on:=>WitiState} the {witi:=>WitiEngine}",
+				"turn the {why tie:=>WitiEngine} {off:=>WitiState}",
+				"{deactivate:=>WitiState} the {witi:=>WitiEngine}",
+				"switch {on:=>WitiState} the {witi:=>WitiEngine}",
+				"switch the {why tie:=>WitiEngine} {off:=>WitiState}",
+				"switch {on:=>WitiState} the {witi:=>WitiEngine}",
+				"switch the {why tie:=>WitiEngine} {off:=>WitiState}",
+				"{activate:=>WitiState} {security:=>WitiEngine}"
 			],
 			"slots": [
 				{
-					"name": "DummySlotName",
+					"name": "WitiEngine",
 					"required": false,
-					"type": "DummySlot",
+					"type": "WitiEngine",
+					"missingQuestion": ""
+				},
+				{
+					"name": "WitiState",
+					"required": false,
+					"type": "WitiState",
+					"missingQuestion": ""
+				}
+			]
+		},
+		{
+			"name": "WitiOnState",
+			"enabledByDefault": true,
+			"utterances": [
+				"look after my property",
+				"make sure no one steals my caravan",
+				"make sure no one steals my trailer",
+				"Keep my van safe",
+				"protect my property please"
+			],
+			"slots": [
+				{
+					"name": "WitiEngine",
+					"required": false,
+					"type": "WitiEngine",
+					"missingQuestion": ""
+				},
+				{
+					"name": "WitiState",
+					"required": false,
+					"type": "WitiState",
+					"missingQuestion": ""
+				}
+			]
+		},
+		{
+			"name": "PinCode",
+			"enabledByDefault": true,
+			"utterances": [
+				"{1234:=>number}"
+			],
+			"slots": [
+				{
+					"name": "number",
+					"required": true,
+					"type": "snips/number",
+					"missingQuestion": ""
+				}
+			]
+		},
+		{
+			"name": "WitiSettings",
+			"enabledByDefault": true,
+			"utterances": [
+				"Turn {on:=>WitiState} {auto arming:=>configSetting}",
+				"Turn {off:=>WitiState} the {auto arming:=>configSetting}",
+				"set {auto alarm:=>configSetting} {on:=>WitiState}",
+				"set {auto alarm:=>configSetting} to {off:=>WitiState}",
+				"change the {alarm code:=>configSetting}",
+				"change the witi {pin code:=>configSetting}",
+				"reset the {alarm code:=>configSetting}",
+				"change the {enabled:=>notification} notification",
+				"change the {triggered:=>notification} message"
+			],
+			"slots": [
+				{
+					"name": "WitiState",
+					"required": false,
+					"type": "WitiState",
+					"missingQuestion": ""
+				},
+				{
+					"name": "configSetting",
+					"required": false,
+					"type": "ConfigSetting",
+					"missingQuestion": ""
+				},
+				{
+					"name": "notification",
+					"required": false,
+					"type": "WitiNotification",
 					"missingQuestion": ""
 				}
 			]

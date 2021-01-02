@@ -64,5 +64,17 @@
 		"dataType": "integer",
 		"isSensitive": false,
 		"description": "Seconds to remind user to turn off alarm"
+	},
+	"useHomeAssistantPersonDetection": {
+		"defaultValue": false,
+		"dataType": "boolean",
+		"isSensitive": false,
+		"description": "Allows user to use HomeAssistant to determine presence detection"
+	},
+	"homeAssistantBooleanName": {
+		"defaultValue": "input_boolean.persons_home",
+		"dataType": "string",
+		"isSensitive": false,
+		"description": "Add you HA input boolean name for indicating if people are home"
 	}
 }

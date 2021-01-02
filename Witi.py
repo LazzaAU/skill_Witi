@@ -6,6 +6,8 @@ from core.commons import constants
 from core.user.model.AccessLevels import AccessLevel
 from skills.Telegram import Telegram
 import RPi.GPIO as GPIO
+from pathlib import Path
+import json
 
 
 class Witi(AliceSkill):
@@ -49,6 +51,7 @@ class Witi(AliceSkill):
 		self._previousMQTTMessage = dict()
 		self._witiDatabaseValues = dict()
 		self._voiceControlled = False
+		self._homeassistantActive = False
 
 		GPIO.setmode(GPIO.BCM)
 		GPIO.setwarnings(False)
@@ -83,7 +86,7 @@ class Witi(AliceSkill):
 				)
 
 		# reset the alarm to previous state in the event that WITI crashed and rebooted
-		if self._witiDatabaseValues["AlarmState"] == 0:
+		if self._witiDatabaseValues["AlarmState"] == 0 or not self._witiDatabaseValues["AlarmState"]:
 			GPIO.output(Witi._SWITCH_ALARM, False)
 			self.UserManager.home()
 			self.updatePresenceDictionary(userchecking=False, userHome=True)
@@ -615,12 +618,31 @@ class Witi(AliceSkill):
 		It also stores "userchecking" which is used to determine if the current state of the code
 		is trying to determine if a user is home.
 		"""
-		self._presenceObject = {
-			"checkingForUser": userchecking,
-			"someonesHome"   : userHome,
-			"userHome"       : self.UserManager.checkIfAllUser("home"),
-			"userOut"        : self.UserManager.checkIfAllUser("out")
-		}
+		if self.getConfig('useHomeAssistantPersonDetection'):
+			if self.homeassistantPresenceDetection():
+				print('presenceDictionary has determined somes home via HA')
+				self._presenceObject = {
+					"checkingForUser": False,
+					"someonesHome"   : True,
+					"userHome"       : self.UserManager.checkIfAllUser("home"),
+					"userOut"        : self.UserManager.checkIfAllUser("out")
+				}
+			else:
+				print('presenceDictionary has determined no ones home via HA')
+				self._presenceObject = {
+					"checkingForUser": False,
+					"someonesHome"   : False,
+					"userHome"       : self.UserManager.checkIfAllUser("home"),
+					"userOut"        : self.UserManager.checkIfAllUser("out")
+				}
+		else:
+			print('presenceDictionary was run without HA support')
+			self._presenceObject = {
+				"checkingForUser": userchecking,
+				"someonesHome"   : userHome,
+				"userHome"       : self.UserManager.checkIfAllUser("home"),
+				"userOut"        : self.UserManager.checkIfAllUser("out")
+			}
 
 
 	def gpioState(self, gpioString: str) -> str:
@@ -799,4 +821,34 @@ class Witi(AliceSkill):
 				siteId=str(self._satelliteUID)
 			)
 			self.updateValueInDB(event='telegramReminder', newState=1)
+			return False
+
+
+	def homeassistantPresenceDetection(self) -> bool:
+		""" Are people at home ?
+		true = Yes people are home
+		false = No ones home at themoment
+		"""
+		haStates = Path(f'{str(Path.home())}/skills/HomeAssistant/currentStateOfDevices.json')
+		if self.HomeAssistantLoaded():
+			print(f'haStates file is {haStates}')
+			data = json.loads(haStates.read_text())
+			booleanName = self.getConfig('homeAssistantBooleanName')
+			if data[booleanName] == 'off':
+				print('no ones home')
+				return False
+			elif data[booleanName] == 'on':
+				print('People are home')
+				return True
+
+
+	def HomeAssistantLoaded(self) -> bool:
+		haStates = f'{str(Path.home())}/skills/HomeAssistant/currentStateOfDevices.json'
+
+		if Path(haStates).exists():
+			# self._homeassistantActive = True
+			return True
+		else:
+			self.logWarning(f'HomeAssistant not loaded, disabling this option')
+			self.updateConfig('useHomeAssistantPersonDetection', False)
 			return False
