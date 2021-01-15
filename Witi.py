@@ -97,7 +97,7 @@ class Witi(AliceSkill):
 
 		# Get the UID of the satellite so we know where to speak to
 		device = self.DeviceManager.getAliceTypeDevices(includeMain=False, connectedOnly=False)
-		self._satelliteUID = device[0].uid
+		self._satelliteUID = device[0].name
 
 		# Check the status and settings of telegram
 		self.telegramStatusCheck()
@@ -637,6 +637,7 @@ class Witi(AliceSkill):
 				}
 		else:
 			print('presenceDictionary was run without HA support')
+
 			self._presenceObject = {
 				"checkingForUser": userchecking,
 				"someonesHome"   : userHome,
@@ -827,7 +828,7 @@ class Witi(AliceSkill):
 	def homeassistantPresenceDetection(self) -> bool:
 		""" Are people at home ?
 		true = Yes people are home
-		false = No ones home at themoment
+		false = No ones home at the moment
 		"""
 		haStates = Path(f'{str(Path.home())}/skills/HomeAssistant/currentStateOfDevices.json')
 		if self.HomeAssistantLoaded():

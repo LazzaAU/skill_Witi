@@ -70,7 +70,8 @@
 						"why tie",
 						"witty",
 						"alarm",
-						"security"
+						"security",
+						"white eye"
 					]
 				}
 			]
@@ -126,6 +127,7 @@
 			"utterances": [
 				"turn {on:=>WitiState} the {witi:=>WitiEngine}",
 				"turn the {why tie:=>WitiEngine} {off:=>WitiState}",
+				"turn the {white eye:=>WitiEngine} {off:=>WitiState}",
 				"{deactivate:=>WitiState} the {witi:=>WitiEngine}",
 				"switch {on:=>WitiState} the {witi:=>WitiEngine}",
 				"switch the {why tie:=>WitiEngine} {off:=>WitiState}",
