@@ -18,7 +18,8 @@
 					"value": "off",
 					"synonyms": [
 						"deactivate",
-						"disable"
+						"disable",
+						"don't"
 					]
 				}
 			]
@@ -39,7 +40,10 @@
 				{
 					"value": "alarm code",
 					"synonyms": [
-						"pin code"
+						"pin code",
+						"pin",
+						"code",
+						"pincode"
 					]
 				},
 				{
@@ -71,7 +75,8 @@
 						"witty",
 						"alarm",
 						"security",
-						"white eye"
+						"white eye",
+						"white tie"
 					]
 				}
 			]
@@ -126,13 +131,14 @@
 			"enabledByDefault": true,
 			"utterances": [
 				"turn {on:=>WitiState} the {witi:=>WitiEngine}",
+				"turn {on:=>WitiState} the {alarm:=>WitiEngine}",
 				"turn the {why tie:=>WitiEngine} {off:=>WitiState}",
 				"turn the {white eye:=>WitiEngine} {off:=>WitiState}",
 				"{deactivate:=>WitiState} the {witi:=>WitiEngine}",
 				"switch {on:=>WitiState} the {witi:=>WitiEngine}",
 				"switch the {why tie:=>WitiEngine} {off:=>WitiState}",
-				"switch {on:=>WitiState} the {witi:=>WitiEngine}",
-				"switch the {why tie:=>WitiEngine} {off:=>WitiState}",
+				"flick {on:=>WitiState} the {witi:=>WitiEngine}",
+				"flick the {why tie:=>WitiEngine} {off:=>WitiState}",
 				"{activate:=>WitiState} {security:=>WitiEngine}"
 			],
 			"slots": [
@@ -154,6 +160,11 @@
 			"name": "WitiOnState",
 			"enabledByDefault": true,
 			"utterances": [
+				"i'm leaving",
+				"i'm going out",
+				"we're going out",
+				"we're leaving",
+				"we are leaving",
 				"look after my property",
 				"make sure no one steals my caravan",
 				"make sure no one steals my trailer",
@@ -179,11 +190,19 @@
 			"name": "PinCode",
 			"enabledByDefault": true,
 			"utterances": [
-				"{1234:=>number}"
+				"{10:=>Number}",
+				"{5:=>Number}",
+				"{103:=>Number}",
+				"{784:=>Number}",
+				"{9567:=>Number}",
+				"{5:=>Number} {1:=>Number} {3:=>Number}",
+				"{50:=>Number} {342:=>Number} {9:=>Number}",
+				"{1:=>Number} {1:=>Number} {0:=>Number} {5:=>Number}",
+				"{102:=>Number} {895:=>Number} {0:=>Number} {75:=>Number}"
 			],
 			"slots": [
 				{
-					"name": "number",
+					"name": "Number",
 					"required": true,
 					"type": "snips/number",
 					"missingQuestion": ""

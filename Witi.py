@@ -64,6 +64,9 @@ class Witi(AliceSkill):
 		super().__init__(databaseSchema=self.DATABASE)
 
 
+	ALARM_CODE = "alarm code"
+
+
 	# When the Pi boots up, do the following
 	def onBooted(self) -> bool:
 		# run other onbooted code
@@ -164,16 +167,31 @@ class Witi(AliceSkill):
 		self.enableAlarm()
 
 
-	# User is renewing PinCode
 	@IntentHandler(intent='PinCode', requiredState='renewingPinCode')
 	def renewPincode(self, session: DialogSession):
-		if 'number' in session.slots:
-			self.updateConfig(key='pinCode', value=session.slotValue('number'))
-			self.endDialog(
-				sessionId=session.sessionId,
-				text='pin code has been updated',
-				siteId=str(self._satelliteUID)
-			)
+		""" User is updating their pinCode
+			- Listen only for digits
+			- Accept only if pin is 4 digits long
+			- Update config if the above is true
+			- Else return
+		"""
+
+		if 'Number' in session.slots:
+			pin = ''.join([str(int(x.value['value'])) for x in session.slotsAsObjects['Number']])
+
+			if len(pin) != 4:
+				self.endDialog(
+					sessionId=session.sessionId,
+					text=f'That pin number is not 4 digits, You\'ll have to ask me again sorry',
+					siteId=str(self._satelliteUID)
+				)
+			else:
+				self.updateConfig(key='pinCode', value=pin)
+				self.endDialog(
+					sessionId=session.sessionId,
+					text=f'pin code has been updated to {[digit for digit in pin]}',
+					siteId=str(self._satelliteUID)
+				)
 		else:
 			self.continueDialog(
 				sessionId=session.sessionId,
@@ -183,26 +201,28 @@ class Witi(AliceSkill):
 			)
 
 
-	# If user has enabled forcePinCode setting for disarming the alarm then do this
 	@IntentHandler(intent='PinCode', requiredState='ListenForPinCode')
 	def confirmPinCode(self, session: DialogSession, **_kwargs):
+		""" If user has enabled forcePinCode setting for disarming the alarm then do this """
+
 		# If user provides the correct PinCode
-		if session.slotValue('number') == self.getConfig('pinCode'):
-			# continue to disable the Alarm but don't send telegram message just a voice message
-			if not constants.UNKNOWN_USER in session.user:
-				self.disarmCode(session=session, sendTelegram=False, user=session.user)
+		if session.slotValue('Number') == self.getConfig('pinCode'):
+			# Continue to disable the Alarm
+			self.disarmCode(session=session, sendTelegram=True, user=session.user)
 		else:
-			# if incorrect pinCode. Abort and user will have to try again
+			# if incorrect pinCode. Abort and user will have to try again. Send a telgram message
 			self.endDialog(
 				sessionId=session.sessionId,
 				text='Sorry but you provided me the wrong pin code. Aborting',
 				siteId=str(self._satelliteUID)
 			)
+			self.sendTelegramMessage(f'{session.user} just provided a incorrect pinCode')
 
 
-	# Checking if a user is home. If there's a responce... cancel arming the alarm
 	@IntentHandler(intent='AnswerYesOrNo', requiredState='askingToCancelAlarm')
 	def yesOrNoResponce(self, session: DialogSession):
+		""" Checking if a user is home. If there's a responce... cancel arming the alarm"""
+
 		# If a user responds with a yes to the question asked...
 		if self.Commons.isYes(session):
 			self.updatePresenceDictionary(userchecking=False, userHome=True)
@@ -221,70 +241,98 @@ class Witi(AliceSkill):
 			self.UserManager.leftHome()
 
 
-	# todo Adjust witi settings via voice command such as turn on and off auto arming
 	@IntentHandler('WitiSettings')
 	def adjustWitiSettings(self, session: DialogSession):
+		""" Allows user to adjust WITI settings via voice """
+
 		if 'WitiState' in session.slotsAsObjects:
-			if 'auto arming' in session.slotsAsObjects:
+			if session.slotValue('configSetting') == "auto arming":
 				self.updateConfigFileSetting(session=session, key='turnOnAutoArming')
-			elif 'alarm code' in session.slotsAsObjects:
+
+			elif session.slotValue('configSetting') == Witi.ALARM_CODE and self.UserManager.hasAccessLevel(session.user,
+																										   AccessLevel.ADMIN):
 				self.updateConfigFileSetting(session=session, key='forcePinCode')
-			elif 'trigger sound' in session.slotsAsObjects:
+				self.sendTelegramMessage(f'{session.user} just turned PinCode to {session.slotValue("WitiState")}')
+
+			elif session.slotValue('configSetting') == Witi.ALARM_CODE and not self.UserManager.hasAccessLevel(
+					session.user, AccessLevel.ADMIN):
+				self.endDialog(
+					sessionId=session.sessionId,
+					text=f'Sorry but i don\'t know who you are. Please call me by my name and try again',
+					siteId=str(self._satelliteUID)
+				)
+				self.sendTelegramMessage(
+					f'{session.user} just failed to turn {session.slotValue("WitiState")} the pincode setting')
+
+			elif session.slotValue('configSetting') == "trigger sound":
 				self.updateConfigFileSetting(session=session, key='activateSoundOnTrigger')
-			elif 'mqtt' in session.slotsAsObjects:
+
+			elif session.slotValue('configSetting') == "mqtt":
 				self.updateConfigFileSetting(session=session, key='enableMQTTmessages')
 
 
+
 		elif not 'WitiState' in session.slotsAsObjects:
-			if 'alarm code' in session.slotsAsObjects:
+			# If user is trying to modify PinCode state they must be reognised
+			if session.slotValue('configSetting') == Witi.ALARM_CODE:
 				if self.UserManager.hasAccessLevel(session.user, AccessLevel.ADMIN):
 					self.continueDialog(
 						sessionId=session.sessionId,
 						text='Sure, What pin code do you want to use?. Remember, It must be numbers',
 						intentFilter=['PinCode'],
-						currentDialogState='renewingPinCode'
+						currentDialogState='renewingPinCode',
+						probabilityThreshold=0.1
+					)
+				else:
+					self.endDialog(
+						sessionId=session.sessionId,
+						text='Sorry but i don\'t recognise you. Please call me by my name',
+						siteId=str(self._satelliteUID)
 					)
 
-			elif 'WitiNotifications' in session.slotsAsObjects:
-				print(f'session for notification is {session.slotsAsObjects}')
-				if 'notification' in session.slots:
-					if 'enabled' in session.slotValue('notification'):
-						self.continueDialog(
-							sessionId=session.sessionId,
-							text='Sure what message do you want to send for enabled notifications?',
-							intentFilter=['UserRandomAnswer'],
-							currentDialogState='changingEnabledNotificationMessage',
-							probabilityThreshold=0.1
-						)
-					elif 'disabled' in session.slotValue('notification'):
-						self.continueDialog(
-							sessionId=session.sessionId,
-							text='Sure what message do you want to send for disabled notifications?',
-							intentFilter=['UserRandomAnswer'],
-							currentDialogState='changingDisabledNotificationMessage',
-							probabilityThreshold=0.1
-						)
-					elif 'triggered' in session.slotValue('notification'):
-						self.continueDialog(
-							sessionId=session.sessionId,
-							text='Sure what message do you want to send for your triggered notification ?',
-							intentFilter=['UserRandomAnswer'],
-							currentDialogState='changingTriggeredNotificationMessage',
-							probabilityThreshold=0.1
-						)
+			elif session.slotValue('notification') == 'enabled':
+				self.continueDialog(
+					sessionId=session.sessionId,
+					text='Sure what message do you want to send for enabled notifications?',
+					intentFilter=['UserRandomAnswer'],
+					currentDialogState='changingEnabledNotificationMessage',
+					probabilityThreshold=0.1
+				)
+
+			elif session.slotValue('notification') == "disabled":
+				self.continueDialog(
+					sessionId=session.sessionId,
+					text='Sure what message do you want to send for disabled notifications?',
+					intentFilter=['UserRandomAnswer'],
+					currentDialogState='changingDisabledNotificationMessage',
+					probabilityThreshold=0.1
+				)
+
+			elif session.slotValue('notification') == "triggered":
+				self.continueDialog(
+					sessionId=session.sessionId,
+					text='Sure what message do you want to send for your triggered notification ?',
+					intentFilter=['UserRandomAnswer'],
+					currentDialogState='changingTriggeredNotificationMessage',
+					probabilityThreshold=0.1
+				)
 
 
-	# intents for changing notification messages
 	@IntentHandler(intent='UserRandomAnswer', requiredState='changingTriggeredNotificationMessage')
 	@IntentHandler(intent='UserRandomAnswer', requiredState='changingEnabledNotificationMessage')
 	@IntentHandler(intent='UserRandomAnswer', requiredState='changingDisabledNotificationMessage')
 	def changingNotificationMessage(self, session: DialogSession):
-		if session.currentState == 'changingTriggeredNotificationMessage':
+		""" Intents for changing notification messages"""
+
+		if 'changingTriggeredNotificationMessage' in session.currentState:
 			self.updateConfig(key='triggeredMessage', value=session.payload['input'])
-		elif session.currentState == 'changingEnabledNotificationMessage':
+
+		elif 'changingEnabledNotificationMessage' in session.currentState:
 			self.updateConfig(key='enabledNotification', value=session.payload['input'])
-		elif session.currentState == 'changingdisabledNotificationMessage':
+
+		elif 'changingdisabledNotificationMessage' in session.currentState:
 			self.updateConfig(key='disabledNotification', value=session.payload['input'])
+
 		self.endDialog(
 			sessionId=session.sessionId,
 			text=f'Just changed that message to {session.payload["input"]}',
@@ -292,13 +340,14 @@ class Witi(AliceSkill):
 		)
 
 
-	# Method for updating config.json values from true to false and visa versa
 	def updateConfigFileSetting(self, session, key: str):
-
+		""" Method for updating config.json values from true to false and visa versa"""
 		if 'on' in session.slotValue('WitiState'):
-			self.updateConfig(key=key, value=True)
+			self.updateConfig(key=key, value="true")
+
 		elif 'off' in session.slotValue('WitiState'):
-			self.updateConfig(key=key, value=False)
+			self.updateConfig(key=key, value="false")
+
 		self.endDialog(
 			sessionId=session.sessionId,
 			text=f'No Problem, That setting is now {session.slotValue("WitiState")}',
@@ -313,14 +362,13 @@ class Witi(AliceSkill):
 		- Creates a telegram instance if ChatID is configured
 		- Sends the message to the telegram bot
 		"""
-		if self.getConfig('telegramChatID'):
+		if self._witiDatabaseValues['telegramID']:
 			telegram = Telegram.Telegram()
-			telegram.sendMessage(chatId=self.getConfig('telegramChatID'), message=message)
+			telegram.sendMessage(chatId=self._witiDatabaseValues['telegramID'], message=message)
 
 
 	### Enable the Alarm
 	def enableAlarm(self):
-
 		self.logDebug(f'***** ENABLE ALARM *****')
 
 		# If these states are true, don't enable the alarm
@@ -385,6 +433,7 @@ class Witi(AliceSkill):
 
 
 	def announceAction(self, session, state: str):
+		""" Announce the state of the alarm """
 		self.endDialog(
 			sessionId=session.sessionId,
 			text=f'Ok, turning the alarm *{state}* now',
@@ -393,6 +442,7 @@ class Witi(AliceSkill):
 
 
 	def announceNoAction(self, session, state: str):
+		""" Announce no action to be taken """
 		self.endDialog(
 			sessionId=session.sessionId,
 			text=f'The Alarm is already *{state}*, No further action taken',
@@ -428,7 +478,7 @@ class Witi(AliceSkill):
 			# Send a telegram message
 			self.sendTelegramMessage(self.getConfig('triggeredMessage'))
 
-			# IF user has enabled sounds. Trigger some user defined speech
+			# If user has enabled sounds. Trigger some user defined speech. (novelty feature)
 			if self.getConfig('activateSoundOnTrigger'):
 				self.say(
 					text='Uploading live camera footage to the cloud. Also alerting neighbourhood watch contacts',
@@ -467,7 +517,7 @@ class Witi(AliceSkill):
 
 		1. update GPIO values with current states
 		2. Set the MQTT payload values to human friendly states
-		3. publish the MQTT payload to the "WitiAlarm topic
+		3. publish the MQTT payload to the "WitiAlarm" topic
 		"""
 		self.updateGPIOvalues()
 
@@ -480,7 +530,6 @@ class Witi(AliceSkill):
 					"IgnitionActive" : self.gpioState('IgnitionActive'),
 					"PairedToVehicle": self.gpioState('PairedToVehicle'),
 					"UserPresence"   : {
-						#	'someonesHome' : self._presenceObject['someonesHome'],
 						'checkingUserPresence': self._presenceObject['checkingForUser'],
 						"userHome"            : self.UserManager.checkIfAllUser("home"),
 						"userOut"             : self.UserManager.checkIfAllUser("out"),
@@ -503,7 +552,6 @@ class Witi(AliceSkill):
 		"""
 		Triggers when a users state changes to leaving home ("out")
 		"""
-		print(f'on leaving home triggered')
 		super().onLeavingHome()
 		if not self.UserManager.checkIfAllUser('home'):
 			# set userState to away ('out')
@@ -523,8 +571,6 @@ class Witi(AliceSkill):
 				text='Welcome back. Please call me by my name and say, "Turn off the alarm ',
 				siteId=str(self._satelliteUID)
 			)
-			# todo remove this next dev code
-			self.devDisableCode()
 
 
 	def onSessionStarted(self, session):
@@ -575,7 +621,7 @@ class Witi(AliceSkill):
 			# Ask user for a responce. No responce assumes no ones home and alarm will be enabled
 			# when the dialog session times out.
 			self.ask(
-				text='I\'ve detected the vehicle has left ?. Would you like me to cancel turning on the alarm ?',
+				text='I\'ve detected the vehicle has left. Reply with "yes" if you\'d like me to cancel turning on the alarm',
 				intentFilter=['AnswerYesOrNo'],
 				currentDialogState='askingToCancelAlarm',
 				siteId=str(self._satelliteUID)
@@ -588,6 +634,7 @@ class Witi(AliceSkill):
 			self.logDebug('Setting user state to home')
 			self.UserManager.home()
 			self.updatePresenceDictionary(userchecking=False, userHome=self.UserManager.checkIfAllUser('home'))
+
 			# Say a welcome home reminder after "secondsAfterReturningHome" seconds (configured in settings)
 			self.ThreadManager.doLater(
 				interval=self.getConfig('secondsAfterReturningHome'),
@@ -605,13 +652,12 @@ class Witi(AliceSkill):
 		if self._autoArmingActive:
 			self._autoArmingActive = False
 			self.say(
-				text='Welcome home, please call me by my name and ask me to. "Turn off the alarm" ',
+				text='Welcome home, please call me by my name and ask me to, "Turn off the alarm" ',
 				siteId=str(self._satelliteUID)
 			)
-			# Todo remove this dev code
-			self.devDisableCode()
 
 
+	# Todo remove the logwarnings below
 	def updatePresenceDictionary(self, userchecking: bool, userHome: bool):
 		"""
 		PresenceDictionary stores the values of a users home/away status.
@@ -620,7 +666,7 @@ class Witi(AliceSkill):
 		"""
 		if self.getConfig('useHomeAssistantPersonDetection'):
 			if self.homeassistantPresenceDetection():
-				print('presenceDictionary has determined somes home via HA')
+				self.logWarning('presenceDictionary has determined somes home via HA')
 				self._presenceObject = {
 					"checkingForUser": False,
 					"someonesHome"   : True,
@@ -628,7 +674,7 @@ class Witi(AliceSkill):
 					"userOut"        : self.UserManager.checkIfAllUser("out")
 				}
 			else:
-				print('presenceDictionary has determined no ones home via HA')
+				self.logWarning('presenceDictionary has determined no ones home via HA')
 				self._presenceObject = {
 					"checkingForUser": False,
 					"someonesHome"   : False,
@@ -636,7 +682,7 @@ class Witi(AliceSkill):
 					"userOut"        : self.UserManager.checkIfAllUser("out")
 				}
 		else:
-			print('presenceDictionary was run without HA support')
+			self.logWarning('presenceDictionary was run without HA support')
 
 			self._presenceObject = {
 				"checkingForUser": userchecking,
@@ -709,6 +755,7 @@ class Witi(AliceSkill):
 
 
 	def checkPossibleTowingState(self) -> bool:
+		""" Check for possible towing states"""
 		if self.gpioState('PairedToVehicle') == 'Connected':
 			if self.gpioState('IgnitionActive') == 'on':
 				return True
@@ -724,6 +771,11 @@ class Witi(AliceSkill):
 
 
 	def disarmCode(self, session=None, sendTelegram: bool = None, user: str = None):
+		""" If Alarm is being disarmed
+			- Announce alarm is disabled
+			- Set user presence values
+			- Send telegram if enabled
+		"""
 		if session:
 			self.announceAction(session=session, state="off")
 		self.logWarning('** ALARM IS BEING DISABLED **')
@@ -731,9 +783,11 @@ class Witi(AliceSkill):
 		GPIO.output(Witi._SWITCH_ALARM, False)
 		self.updateValueInDB(event='AlarmState', newState=0)
 		self.UserManager.home()
+
 		if sendTelegram:
 			if user:
 				self.sendTelegramMessage(f'{user} has just disabled the alarm')
+
 			else:
 				self.sendTelegramMessage(f'The alarm has just been turned off by a unknown person')
 
@@ -742,7 +796,9 @@ class Witi(AliceSkill):
 
 
 	def dontEnableAlarmStates(self) -> bool:
-		# If the ignition is on and vehicle "connected" or someone is at home. Don't enable the alarm
+		"""
+		If the ignition is on and vehicle "connected" or someone is at home. Don't enable the alarm
+		"""
 		if self.checkPossibleTowingState() or self._presenceObject[
 			'someonesHome'] == True and not self._voiceControlled:
 			self.logWarning(f'Either the Ignition is on or someone is Home, so not enabling alarm ')
@@ -752,13 +808,12 @@ class Witi(AliceSkill):
 		# Prevent re auto enabling the alarm if a user is home but the vehicle is away
 		# Also prevent arming if ignition is on
 		if self.manuallyDisabled() or self.gpioState("IgnitionActive") == 'on':
-			print('ignition is on or user has made a request - 602')
 			return False
 
 
 	def resetAutoArming(self):
 		"""
-		 If alarm was disabled why pairing was dsconnected and vehicle is now connected again
+		 If alarm was disabled while pairing was disconnected and vehicle is now connected again
 		 Reset vars so that autoarming will enable next time vehicle disconnects
 		"""
 		if self._voiceControlled and self.gpioState('PairedToVehicle') == 'Connected' and self.gpioState(
@@ -825,6 +880,7 @@ class Witi(AliceSkill):
 			return False
 
 
+	# todo clean up the logwarnings in the below block
 	def homeassistantPresenceDetection(self) -> bool:
 		""" Are people at home ?
 		true = Yes people are home
@@ -832,14 +888,14 @@ class Witi(AliceSkill):
 		"""
 		haStates = Path(f'{str(Path.home())}/skills/HomeAssistant/currentStateOfDevices.json')
 		if self.HomeAssistantLoaded():
-			print(f'haStates file is {haStates}')
+			self.logWarning(f'haStates file is {haStates}')
 			data = json.loads(haStates.read_text())
 			booleanName = self.getConfig('homeAssistantBooleanName')
 			if data[booleanName] == 'off':
-				print('no ones home')
+				self.logWarning('no ones home according to Home Assistant')
 				return False
 			elif data[booleanName] == 'on':
-				print('People are home')
+				self.logWarning('People are home according to Home Assistant')
 				return True
 
 
@@ -847,7 +903,6 @@ class Witi(AliceSkill):
 		haStates = f'{str(Path.home())}/skills/HomeAssistant/currentStateOfDevices.json'
 
 		if Path(haStates).exists():
-			# self._homeassistantActive = True
 			return True
 		else:
 			self.logWarning(f'HomeAssistant not loaded, disabling this option')
